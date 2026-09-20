@@ -13,25 +13,31 @@ jobs:
 
       - name: Extract Zip File
         run: |
-          Expand-Archive -Path "*.zip" -DestinationPath "."
+          Expand-Archive -Path "*.zip" -DestinationPath "./extracted"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
       - name: Install Dependencies & Build
         run: |
-          Get-ChildItem -Path . -Filter "package.json" -Recurse | ForEach-Object {
-            $dir = $_.DirectoryName
-            Write-Host "Found package.json in: $dir"
-            Set-Location $dir
-            npm install
-            npm run electron:build
-          }
+          # Cari folder utama proyek yang memiliki package.json langsung (bukan di dalam node_modules)
+          $pkg = Get-ChildItem -Path ./extracted -Filter "package.json" -Recurse | Where-Object { $_.FullName -notlike "*node_modules*" } | Select-Object -First 1
+          if (-not $pkg) { throw "package.json utama tidak ditemukan!" }
+          
+          $dir = $pkg.DirectoryName
+          Write-Host "Masuk ke folder proyek utama: $dir"
+          Set-Location $dir
+          
+          # Install dependencies
+          npm install --legacy-peer-deps
+          
+          # Jalankan build Electron
+          npm run electron:build
 
       - name: Upload Artifact (.exe)
         uses: actions/upload-artifact@v4
         with:
           name: Pixel-Racer-3D-EXE
-          path: "**/dist-electron/*.exe"
+          path: "./extracted/**/dist-electron/*.exe"
