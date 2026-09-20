@@ -1,0 +1,37 @@
+name: Build EXE from Zip
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Extract Zip File
+        run: |
+          Expand-Archive -Path "*.zip" -DestinationPath "./extracted"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          cd ./extracted/*
+          npm install
+
+      - name: Build Executable
+        run: |
+          cd ./extracted/*
+          npm run electron:build
+
+      - name: Upload Artifact (.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pixel-Racer-3D-EXE
+          path: ./extracted/*/dist-electron/*.exe
