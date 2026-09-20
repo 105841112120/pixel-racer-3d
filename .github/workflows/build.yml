@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
@@ -13,36 +13,37 @@ jobs:
 
       - name: Extract Zip File
         run: |
-          Expand-Archive -Path "*.zip" -DestinationPath "./extracted"
+          unzip -q "*.zip" -d ./extracted
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Clean, Install & Build
+      - name: Clean, Install & Build EXE
         run: |
           # Cari folder package.json utama
-          $pkg = Get-ChildItem -Path ./extracted -Filter "package.json" -Recurse | Where-Object { $_.FullName -notlike "*node_modules*" } | Select-Object -First 1
-          if (-not $pkg) { throw "package.json utama tidak ditemukan!" }
+          PKG_PATH=$(find ./extracted -name "package.json" -not -path "*/node_modules/*" | head -n 1)
+          if [ -z "$PKG_PATH" ]; then
+            echo "package.json tidak ditemukan!"
+            exit 1
+          fi
           
-          $dir = $pkg.DirectoryName
-          Write-Host "Masuk ke folder proyek utama: $dir"
-          Set-Location $dir
+          TARGET_DIR=$(dirname "$PKG_PATH")
+          echo "Masuk ke folder proyek utama: $TARGET_DIR"
+          cd "$TARGET_DIR"
 
-          # Hapus node_modules bawaan zip jika ada agar tidak crash/bentrok
-          if (Test-Path "node_modules") {
-            Remove-Item -Recurse -Force "node_modules"
-          }
+          # Hapus node_modules bawaan zip jika ada
+          rm -rf node_modules
 
-          # Install ulang dependencies bersih
+          # Install dependencies bersih
           npm install --legacy-peer-deps
 
-          # Build project Vite/React terlebih dahulu
+          # Build project web Vite/React terlebih dahulu
           npm run build --if-present
 
-          # Build executable Electron
-          npm run electron:build
+          # Build file .exe Windows lewat Linux
+          npx electron-builder --win nsis --x64
 
       - name: Upload Artifact (.exe)
         uses: actions/upload-artifact@v4
