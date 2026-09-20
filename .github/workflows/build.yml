@@ -20,20 +20,28 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Dependencies & Build
+      - name: Clean, Install & Build
         run: |
-          # Cari folder utama proyek yang memiliki package.json langsung (bukan di dalam node_modules)
+          # Cari folder package.json utama
           $pkg = Get-ChildItem -Path ./extracted -Filter "package.json" -Recurse | Where-Object { $_.FullName -notlike "*node_modules*" } | Select-Object -First 1
           if (-not $pkg) { throw "package.json utama tidak ditemukan!" }
           
           $dir = $pkg.DirectoryName
           Write-Host "Masuk ke folder proyek utama: $dir"
           Set-Location $dir
-          
-          # Install dependencies
+
+          # Hapus node_modules bawaan zip jika ada agar tidak crash/bentrok
+          if (Test-Path "node_modules") {
+            Remove-Item -Recurse -Force "node_modules"
+          }
+
+          # Install ulang dependencies bersih
           npm install --legacy-peer-deps
-          
-          # Jalankan build Electron
+
+          # Build project Vite/React terlebih dahulu
+          npm run build --if-present
+
+          # Build executable Electron
           npm run electron:build
 
       - name: Upload Artifact (.exe)
